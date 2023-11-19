@@ -1,0 +1,50 @@
+name: Linux Build
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - run: npm i
+      - run: npm run build
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+          extensions: dom, curl, libxml, mbstring, zip, fileinfo, bcmath, sqlite3, ffi
+          ini-values: error_reporting=E_ALL
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-progress --no-suggest --prefer-dist --optimize-autoloader
+
+      - name: Run install
+        run: php artisan native:install --force
+      - name: Run build
+        run: php artisan native:build linux -vvv
+      - name: Archive Release
+        uses: thedoctor0/zip-release@0.7.1
+        with:
+          type: 'zip'
+          directory: dist
+          filename: 'linux.zip'
+      - name: Upload Release
+        uses: ncipollo/release-action@v1.12.0
+        with:
+          tag: 'latest'
+          prerelease: true
+          allowUpdates: true
+          artifacts: "linux.zip"
+          token: ${{ secrets.GITHUB_TOKEN }}
+
